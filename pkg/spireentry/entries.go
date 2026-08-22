@@ -69,7 +69,7 @@ func renderStaticEntry(spec *spirev1alpha1.ClusterStaticEntrySpec) (*spireapi.En
 	}, nil
 }
 
-func renderPodEntry(spec *spirev1alpha1.ParsedClusterSPIFFEIDSpec, node *corev1.Node, pod *corev1.Pod, endpointsList *corev1.EndpointsList, trustDomain spiffeid.TrustDomain, clusterName, clusterDomain string, parentIDTemplate *template.Template) (*spireapi.Entry, error) {
+func renderPodEntry(spec *spirev1alpha1.ParsedClusterSPIFFEIDSpec, node *corev1.Node, pod *corev1.Pod, endpointsList *corev1.EndpointsList, trustDomain spiffeid.TrustDomain, clusterName, clusterDomain string, parentIDTemplate *template.Template, ultimateOwner *ownerInfo) (*spireapi.Entry, error) {
 	// We uniquely target the Pod running on the Node. The former is done
 	// via the k8s:pod-uid selector, the latter via the parent ID.
 	selectors := []spireapi.Selector{
@@ -95,6 +95,7 @@ func renderPodEntry(spec *spirev1alpha1.ParsedClusterSPIFFEIDSpec, node *corev1.
 
 	data.PodMeta = &pod.ObjectMeta
 	data.PodSpec = &pod.Spec
+	data.UltimateOwner = ultimateOwner
 
 	spiffeID, err := renderSPIFFEID(spec.SPIFFEIDTemplate, data, trustDomain)
 	if err != nil {
@@ -138,6 +139,7 @@ type templateData struct {
 	PodSpec       *corev1.PodSpec
 	NodeMeta      *metav1.ObjectMeta
 	NodeSpec      *corev1.NodeSpec
+	UltimateOwner *ownerInfo
 }
 
 func renderSPIFFEID(tmpl *template.Template, data *templateData, expectTD spiffeid.TrustDomain) (spiffeid.ID, error) {

@@ -27,6 +27,7 @@ The definition can be found [here](../api/v1alpha1/clusterspiffeid_types.go).
 | `admin`                     | OPTIONAL | Indicates whether the target workload is an admin workload (i.e. can access SPIRE administrative APIs) |
 | `downstream`                | OPTIONAL | Indicates that the entry describes a downstream SPIRE server. |
 | `autoPopulateDNSNames`      | OPTIONAL | Indicates whether or not to auto populate service DNS names. |
+| `resolveUltimateOwner`      | OPTIONAL | When true, resolves the pod's ultimate owner (top of the ownerReferences chain, e.g. Pod → ReplicaSet → Deployment) and exposes it to the `spiffeIDTemplate` and `dnsNameTemplates` under `.UltimateOwner`. See [Templates](#templates). |
 | `fallback`                  | OPTIONAL | Apply this ID only if there are no other matching non fallback ClusterSPIFFEIDs. |
 | `className`                 | OPTIONAL | The class name of the SPIRE controller manager. |
 
@@ -64,6 +65,26 @@ The following data is available to the template:
 | `{{ .PodSpec }}`       | [PodSpec](https://pkg.go.dev/k8s.io/api/core/v1#PodSpec)                         | The pod specification |
 | `{{ .NodeMeta }}`      | [ObjectMeta](https://pkg.go.dev/k8s.io/apimachinery/pkg/apis/meta/v1#ObjectMeta) | The node metadata for the node the pod is scheduled on |
 | `{{ .NodeSpec }}`      | [NodeSpec](https://pkg.go.dev/k8s.io/api/core/v1#NodeSpec)                       | The node specification for the node the pod is scheduled on |
+
+When `resolveUltimateOwner` is enabled, the following is additionally available
+to the `spiffeIDTemplate` and `dnsNameTemplates`:
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `{{ .UltimateOwner.APIVersion }}` | string | API version of the ultimate owner |
+| `{{ .UltimateOwner.Kind }}`       | string | Kind of the ultimate owner (e.g. `Deployment`) |
+| `{{ .UltimateOwner.Name }}`       | string | Name of the ultimate owner |
+| `{{ .UltimateOwner.Namespace }}`  | string | Namespace of the ultimate owner |
+| `{{ .UltimateOwner.UID }}`        | string | UID of the ultimate owner |
+
+`.UltimateOwner` is unset for pods without any controlling owner reference; a
+template that dereferences it for such pods will fail to render. Resolving
+owners other than the built-in `apps` and `batch` workload kinds (for example
+Argo Rollouts) requires the controller manager to have RBAC read access to
+those resources. The default RBAC includes `apps` (deployments, replicasets,
+statefulsets, daemonsets), `batch` (jobs, cronjobs), and `argoproj.io`
+(rollouts). Note that Argo CD does not set owner references on the resources it
+manages, so those resolve to their normal workload owner (e.g. `Deployment`).
 
 ## Examples
 

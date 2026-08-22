@@ -94,6 +94,7 @@ type ParsedClusterSPIFFEIDSpec struct {
 	Admin                     bool
 	Downstream                bool
 	AutoPopulateDNSNames      bool
+	ResolveUltimateOwner      bool
 	Hint                      string
 }
 
@@ -163,6 +164,7 @@ func ParseClusterSPIFFEIDSpec(spec *ClusterSPIFFEIDSpec) (*ParsedClusterSPIFFEID
 		Admin:                     spec.Admin,
 		Downstream:                spec.Downstream,
 		AutoPopulateDNSNames:      spec.AutoPopulateDNSNames,
+		ResolveUltimateOwner:      spec.ResolveUltimateOwner,
 		Hint:                      spec.Hint,
 	}, nil
 }

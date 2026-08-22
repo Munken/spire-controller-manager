@@ -32,31 +32,36 @@ func TestCachedEntryIsValid(t *testing.T) {
 		nodeRV:      "200",
 		specHash:    "spec-abc",
 		endpointsRV: "300,301",
+		ownerToken:  "owner-1",
 	}
 
 	t.Run("all fields match", func(t *testing.T) {
-		assert.True(t, entry.isValid("100", "200", "spec-abc", "300,301"))
+		assert.True(t, entry.isValid("100", "200", "spec-abc", "300,301", "owner-1"))
 	})
 
 	t.Run("pod RV changed", func(t *testing.T) {
-		assert.False(t, entry.isValid("101", "200", "spec-abc", "300,301"))
+		assert.False(t, entry.isValid("101", "200", "spec-abc", "300,301", "owner-1"))
 	})
 
 	t.Run("node RV changed", func(t *testing.T) {
-		assert.False(t, entry.isValid("100", "201", "spec-abc", "300,301"))
+		assert.False(t, entry.isValid("100", "201", "spec-abc", "300,301", "owner-1"))
 	})
 
 	t.Run("spec hash changed", func(t *testing.T) {
-		assert.False(t, entry.isValid("100", "200", "spec-def", "300,301"))
+		assert.False(t, entry.isValid("100", "200", "spec-def", "300,301", "owner-1"))
 	})
 
 	t.Run("endpoints RV changed", func(t *testing.T) {
-		assert.False(t, entry.isValid("100", "200", "spec-abc", "302,301"))
+		assert.False(t, entry.isValid("100", "200", "spec-abc", "302,301", "owner-1"))
+	})
+
+	t.Run("owner token changed", func(t *testing.T) {
+		assert.False(t, entry.isValid("100", "200", "spec-abc", "300,301", "owner-2"))
 	})
 
 	t.Run("empty endpoints RV matches empty", func(t *testing.T) {
 		e := &cachedEntry{podRV: "1", nodeRV: "2", specHash: "s", endpointsRV: ""}
-		assert.True(t, e.isValid("1", "2", "s", ""))
+		assert.True(t, e.isValid("1", "2", "s", "", ""))
 	})
 }
 
@@ -134,7 +139,7 @@ func TestLRUCacheIntegration(t *testing.T) {
 
 		cached, ok := cache.Get(key)
 		require.True(t, ok)
-		assert.True(t, cached.isValid("100", "200", "spec-1", ""))
+		assert.True(t, cached.isValid("100", "200", "spec-1", "", ""))
 		assert.Equal(t, dummyEntry, cached.entry)
 	})
 
@@ -142,7 +147,7 @@ func TestLRUCacheIntegration(t *testing.T) {
 		key := podEntryCacheKey("pod-1")
 		cached, ok := cache.Get(key)
 		require.True(t, ok)
-		assert.False(t, cached.isValid("101", "200", "spec-1", ""))
+		assert.False(t, cached.isValid("101", "200", "spec-1", "", ""))
 	})
 
 	t.Run("overwrite same key updates cached entry", func(t *testing.T) {
@@ -158,7 +163,7 @@ func TestLRUCacheIntegration(t *testing.T) {
 
 		cached, ok := cache.Get(key)
 		require.True(t, ok)
-		assert.True(t, cached.isValid("101", "200", "spec-1", ""))
+		assert.True(t, cached.isValid("101", "200", "spec-1", "", ""))
 		assert.Equal(t, newEntry, cached.entry)
 	})
 

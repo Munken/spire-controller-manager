@@ -46,6 +46,10 @@ type PodReconciler struct {
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=nodes,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=endpoints,verbs=get;list;watch
+// Required to resolve the ultimate owner of pods (top of the ownerReferences chain)
+// +kubebuilder:rbac:groups=apps,resources=replicasets;deployments;statefulsets;daemonsets,verbs=get;list;watch
+// +kubebuilder:rbac:groups=batch,resources=jobs;cronjobs,verbs=get;list;watch
+// +kubebuilder:rbac:groups=argoproj.io,resources=rollouts,verbs=get;list;watch
 // Required to patch webhook config with spire CA
 // +kubebuilder:rbac:groups=admissionregistration.k8s.io,resources=validatingwebhookconfigurations,verbs=get;list;patch;watch
 

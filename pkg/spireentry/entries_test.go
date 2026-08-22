@@ -66,7 +66,7 @@ func TestRenderPodEntry(t *testing.T) {
 	td, err := spiffeid.TrustDomainFromString(trustDomain)
 	require.NoError(t, err)
 
-	entry, err := renderPodEntry(parsedSpec, node, pod, endpointsList, td, clusterName, clusterDomain, nil)
+	entry, err := renderPodEntry(parsedSpec, node, pod, endpointsList, td, clusterName, clusterDomain, nil, nil)
 	require.NoError(t, err)
 
 	// SPIFFE ID rendered correctly
@@ -130,7 +130,7 @@ func TestJWTTTLInRenderPodEntry(t *testing.T) {
 	td, err := spiffeid.TrustDomainFromString(trustDomain)
 	require.NoError(t, err)
 
-	entry, err := renderPodEntry(parsedSpec, node, pod, &corev1.EndpointsList{}, td, clusterName, clusterDomain, nil)
+	entry, err := renderPodEntry(parsedSpec, node, pod, &corev1.EndpointsList{}, td, clusterName, clusterDomain, nil, nil)
 	require.NoError(t, err)
 
 	require.Equal(t, entry.JWTSVIDTTL.Nanoseconds(), spec.JWTTTL.Nanoseconds())
@@ -166,8 +166,34 @@ func TestParentIDTemplateRenderPodEntry(t *testing.T) {
 	td, err := spiffeid.TrustDomainFromString(trustDomain)
 	require.NoError(t, err)
 
-	entry, err := renderPodEntry(parsedSpec, node, pod, &corev1.EndpointsList{}, td, clusterName, clusterDomain, defaultParentIDTemplate)
+	entry, err := renderPodEntry(parsedSpec, node, pod, &corev1.EndpointsList{}, td, clusterName, clusterDomain, defaultParentIDTemplate, nil)
 	require.NoError(t, err)
 
 	require.Equal(t, entry.ParentID.String(), fmt.Sprintf("spiffe://%s/spire/agent/x509pop/test.example.org", td))
 }
+
+func TestRenderPodEntryUltimateOwner(t *testing.T) {
+	spec := &spirev1alpha1.ClusterSPIFFEIDSpec{
+		SPIFFEIDTemplate: "spiffe://{{ .TrustDomain }}/owner/{{ .UltimateOwner.Kind }}/{{ .UltimateOwner.Name }}",
+		DNSNameTemplates: []string{
+			"{{ .UltimateOwner.Name }}.{{ .PodMeta.Namespace }}.svc.{{ .ClusterDomain }}",
+		},
+	}
+	node := &corev1.Node{ObjectMeta: metav1.ObjectMeta{UID: "uid"}}
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "namespace"},
+		Spec:       corev1.PodSpec{ServiceAccountName: "test"},
+	}
+	owner := &ownerInfo{APIVersion: "apps/v1", Kind: "Deployment", Name: "web", Namespace: "namespace", UID: "dep-uid"}
+
+	parsedSpec, err := spirev1alpha1.ParseClusterSPIFFEIDSpec(spec)
+	require.NoError(t, err)
+	td, err := spiffeid.TrustDomainFromString(trustDomain)
+	require.NoError(t, err)
+
+	entry, err := renderPodEntry(parsedSpec, node, pod, &corev1.EndpointsList{}, td, clusterName, clusterDomain, nil, owner)
+	require.NoError(t, err)
+	require.Equal(t, fmt.Sprintf("spiffe://%s/owner/Deployment/web", td), entry.SPIFFEID.String())
+	require.Contains(t, entry.DNSNames, "web.namespace.svc.cluster.local")
+}
+

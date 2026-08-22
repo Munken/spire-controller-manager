@@ -180,6 +180,14 @@ spec:
                     type: object
                 type: object
                 x-kubernetes-map-type: atomic
+              resolveUltimateOwner:
+                description: |-
+                  ResolveUltimateOwner, when true, resolves the pod's ultimate owner (the
+                  top of the ownerReferences chain, e.g. Pod -> ReplicaSet -> Deployment)
+                  and makes it available to the spiffeIDTemplate and dnsNameTemplates under
+                  .UltimateOwner. Pods without any owner references leave .UltimateOwner
+                  unset.
+                type: boolean
               spiffeIDTemplate:
                 description: |-
                   SPIFFEID is the SPIFFE ID template. The node and pod spec are made

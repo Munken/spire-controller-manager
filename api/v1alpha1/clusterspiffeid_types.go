@@ -75,6 +75,14 @@ type ClusterSPIFFEIDSpec struct {
 	// AutoPopulateDNSNames indicates whether or not to auto populate service DNS names.
 	AutoPopulateDNSNames bool `json:"autoPopulateDNSNames,omitempty"`
 
+	// ResolveUltimateOwner, when true, resolves the pod's ultimate owner (the
+	// top of the ownerReferences chain, e.g. Pod -> ReplicaSet -> Deployment)
+	// and makes it available to the spiffeIDTemplate and dnsNameTemplates under
+	// .UltimateOwner. Pods without any owner references leave .UltimateOwner
+	// unset.
+	// +kubebuilder:validation:Optional
+	ResolveUltimateOwner bool `json:"resolveUltimateOwner,omitempty"`
+
 	// Set which Controller Class will act on this object
 	// +kubebuilder:validation:Optional
 	ClassName string `json:"className,omitempty"`

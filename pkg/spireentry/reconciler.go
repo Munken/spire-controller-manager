@@ -144,15 +144,17 @@ type cachedEntry struct {
 	nodeRV      string // Node RV
 	specHash    string // Hash of ClusterSPIFFEID spec
 	endpointsRV string // Concatenated Endpoints RVs
+	ownerToken  string // Version token of the resolved ultimate owner chain
 }
 
 // isValid checks whether the cached entry is still fresh by comparing
 // the RVs and hashes against the current state.
-func (c *cachedEntry) isValid(podRV, nodeRV, specHash, endpointsRV string) bool {
+func (c *cachedEntry) isValid(podRV, nodeRV, specHash, endpointsRV, ownerToken string) bool {
 	return c.podRV == podRV &&
 		c.nodeRV == nodeRV &&
 		c.specHash == specHash &&
-		c.endpointsRV == endpointsRV
+		c.endpointsRV == endpointsRV &&
+		c.ownerToken == ownerToken
 }
 
 func (r *entryReconciler) reconcile(ctx context.Context) {
@@ -577,14 +579,24 @@ func (r *entryReconciler) renderPodEntry(ctx context.Context, spec *spirev1alpha
 		}
 	}
 
+	var ultimateOwner *ownerInfo
+	var ownerToken string
+	if spec.ResolveUltimateOwner {
+		var err error
+		ultimateOwner, ownerToken, err = resolveUltimateOwner(ctx, r.config.K8sClient, pod)
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve ultimate owner: %w", err)
+		}
+	}
+
 	if r.renderCache != nil {
 		// 1. Get rendered entry from cache
 		endpointsRV := computeEndpointsRV(endpointsList.Items)
-		if cached, ok := r.renderCache.Get(podEntryCacheKey(pod.UID)); ok && cached.isValid(pod.ResourceVersion, node.ResourceVersion, specHash, endpointsRV) {
+		if cached, ok := r.renderCache.Get(podEntryCacheKey(pod.UID)); ok && cached.isValid(pod.ResourceVersion, node.ResourceVersion, specHash, endpointsRV, ownerToken) {
 			return cached.entry, nil
 		}
 		// 2. Perform render entry if cache miss
-		entry, err := renderPodEntry(spec, node, pod, endpointsList, r.config.TrustDomain, r.config.ClusterName, r.config.ClusterDomain, r.config.ParentIDTemplate)
+		entry, err := renderPodEntry(spec, node, pod, endpointsList, r.config.TrustDomain, r.config.ClusterName, r.config.ClusterDomain, r.config.ParentIDTemplate, ultimateOwner)
 		if err != nil {
 			return nil, err
 		}
@@ -594,12 +606,13 @@ func (r *entryReconciler) renderPodEntry(ctx context.Context, spec *spirev1alpha
 			nodeRV:      node.ResourceVersion,
 			podRV:       pod.ResourceVersion,
 			endpointsRV: endpointsRV,
+			ownerToken:  ownerToken,
 			entry:       entry,
 		})
 		return entry, nil
 	}
 
-	return renderPodEntry(spec, node, pod, endpointsList, r.config.TrustDomain, r.config.ClusterName, r.config.ClusterDomain, r.config.ParentIDTemplate)
+	return renderPodEntry(spec, node, pod, endpointsList, r.config.TrustDomain, r.config.ClusterName, r.config.ClusterDomain, r.config.ParentIDTemplate, ultimateOwner)
 }
 
 func (r *entryReconciler) createEntries(ctx context.Context, declaredEntries []declaredEntry) {
